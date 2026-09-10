@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude вместо команды — фокус-группа, 18 поток</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0c10;
+    --bg-soft:#111319;
+    --text:#f4f5f7;
+    --muted:rgba(244,245,247,0.62);
+    --accent:#c7ff3d;
+    --accent-dim:rgba(199,255,61,0.14);
+    --card:rgba(255,255,255,0.04);
+    --border:rgba(255,255,255,0.09);
+    --danger:#ff5d5d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Onest',sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3{font-family:'Unbounded',sans-serif;letter-spacing:-0.01em;}
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px;}
+  section{padding:96px 0;position:relative;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--accent);
+    background:var(--accent-dim);
+    border:1px solid rgba(199,255,61,0.35);
+    padding:6px 14px;border-radius:999px;
+    margin-bottom:24px;
+  }
+  .eyebrow::before{content:"●";font-size:8px;}
+
+  /* NAV */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    backdrop-filter:blur(14px);
+    background:rgba(11,12,16,0.72);
+    border-bottom:1px solid var(--border);
+  }
+  nav .wrap{
+    display:flex;align-items:center;justify-content:space-between;
+    height:64px;
+  }
+  .logo{font-family:'Unbounded';font-weight:700;font-size:16px;}
+  .logo span{color:var(--accent);}
+  .nav-cta{
+    background:var(--accent);color:#0b0c10;font-weight:700;font-size:14px;
+    padding:10px 20px;border-radius:10px;
+  }
+
+  /* HERO */
+  .hero{
+    min-height:100vh;
+    display:flex;flex-direction:column;justify-content:center;
+    padding-top:120px;padding-bottom:64px;
+    background:
+      radial-gradient(60% 50% at 85% 10%, rgba(199,255,61,0.14), transparent 60%),
+      radial-gradient(50% 40% at 10% 90%, rgba(199,255,61,0.08), transparent 60%);
+  }
+  .hero h1{
+    font-size:clamp(34px,6vw,64px);
+    font-weight:900;
+    line-height:1.06;
+    max-width:900px;
+  }
+  .hero h1 em{
+    font-style:normal;color:var(--accent);
+  }
+  .hero p.lead{
+    margin-top:24px;
+    font-size:clamp(16px,2vw,20px);
+    color:var(--muted);
+    max-width:620px;
+  }
+  .hero .stream-tag{
+    display:inline-block;margin-bottom:20px;
+    font-size:14px;color:var(--muted);
+    border:1px solid var(--border);padding:6px 14px;border-radius:999px;
+  }
+  .hero-cta-row{
+    margin-top:40px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;
+  }
+  .btn-primary{
+    display:inline-flex;align-items:center;gap:10px;
+    background:var(--accent);color:#0b0c10;
+    font-weight:700;font-size:16px;
+    padding:18px 30px;border-radius:14px;
+    border:none;cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 0 0 rgba(199,255,61,0);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(199,255,61,0.25);}
+  .hero-price-note{font-size:14px;color:var(--muted);}
+  .hero-price-note b{color:var(--text);}
+
+  .hero-stats{
+    margin-top:64px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+    max-width:640px;
+  }
+  .hero-stats div{border-top:1px solid var(--border);padding-top:14px;}
+  .hero-stats .num{font-family:'Unbounded';font-size:26px;font-weight:700;color:var(--accent);}
+  .hero-stats .lbl{font-size:13px;color:var(--muted);margin-top:4px;}
+
+  /* PAIN */
+  .pain-grid{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:40px;
+  }
+  .pain-card{
+    background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:24px;
+  }
+  .pain-card .mark{color:var(--danger);font-family:'Unbounded';font-weight:700;font-size:18px;margin-bottom:10px;display:block;}
+  .pain-card p{color:var(--muted);font-size:15px;}
+  h2{font-size:clamp(26px,4vw,38px);font-weight:700;max-width:700px;}
+  .section-sub{color:var(--muted);margin-top:14px;max-width:600px;font-size:16px;}
+
+  /* SOLUTION / ABOUT */
+  .about{
+    display:grid;grid-template-columns:280px 1fr;gap:48px;align-items:start;
+  }
+  .about-photo{
+    width:100%;aspect-ratio:4/5;border-radius:20px;
+    background:linear-gradient(160deg, rgba(199,255,61,0.18), rgba(255,255,255,0.03));
+    border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;position:relative;
+  }
+  .about-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+  .about-photo .ph-placeholder{
+    text-align:center;color:var(--muted);font-size:13px;padding:20px;
+  }
+  .about-badge{
+    position:absolute;bottom:14px;left:14px;right:14px;
+    background:rgba(11,12,16,0.75);backdrop-filter:blur(6px);
+    border:1px solid var(--border);border-radius:10px;
+    padding:8px 12px;font-size:12px;color:var(--muted);
+  }
+  .about h3{font-size:22px;margin-bottom:6px;}
+  .about .role{color:var(--accent);font-size:14px;font-weight:600;margin-bottom:18px;}
+  .about p{color:var(--muted);margin-bottom:14px;font-size:15px;}
+  .about-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .about-tags span{
+    border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted);
+  }
+
+  /* BENEFITS */
+  .benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px;}
+  .benefit{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;}
+  .benefit .n{font-family:'Unbounded';color:var(--accent);font-weight:700;font-size:14px;margin-bottom:10px;}
+  .benefit h4{font-size:17px;margin-bottom:8px;}
+  .benefit p{color:var(--muted);font-size:14px;}
+
+  /* PRICING */
+  .price-box{
+    margin-top:40px;
+    background:linear-gradient(160deg, rgba(199,255,61,0.10), rgba(255,255,255,0.02));
+    border:1px solid rgba(199,255,61,0.35);
+    border-radius:24px;
+    padding:44px;
+    display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center;
+  }
+  .price-left .deadline{
+    display:inline-flex;align-items:center;gap:8px;
+    color:var(--danger);font-weight:700;font-size:14px;
+    border:1px solid rgba(255,93,93,0.4);background:rgba(255,93,93,0.08);
+    padding:8px 14px;border-radius:999px;margin-bottom:20px;
+  }
+  .price-row{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;}
+  .price-old{font-size:22px;color:var(--muted);text-decoration:line-through;}
+  .price-new{font-family:'Unbounded';font-size:52px;font-weight:900;color:var(--accent);}
+  .price-cur{font-size:18px;color:var(--muted);}
+  .price-includes{margin-top:24px;color:var(--muted);font-size:14px;list-style:none;}
+  .price-includes li{margin-bottom:8px;padding-left:22px;position:relative;}
+  .price-includes li::before{content:"✓";position:absolute;left:0;color:var(--accent);font-weight:700;}
+  .price-right{
+    background:var(--bg-soft);border:1px solid var(--border);border-radius:18px;padding:28px;
+    text-align:center;
+  }
+  .price-right .btn-primary{width:100%;justify-content:center;font-size:17px;}
+  .price-right .small{margin-top:14px;font-size:12px;color:var(--muted);}
+  #countdown{
+    font-family:'Unbounded';font-size:22px;font-weight:700;color:var(--text);margin:10px 0 4px;
+  }
+
+  /* FAQ */
+  .faq-item{border-bottom:1px solid var(--border);padding:20px 0;}
+  .faq-q{
+    display:flex;justify-content:space-between;align-items:center;
+    cursor:pointer;font-weight:600;font-size:16px;
+  }
+  .faq-q .plus{color:var(--accent);font-size:20px;transition:transform .2s;}
+  .faq-item.open .plus{transform:rotate(45deg);}
+  .faq-a{max-height:0;overflow:hidden;transition:max-height .25s ease;color:var(--muted);font-size:15px;}
+  .faq-item.open .faq-a{max-height:240px;padding-top:12px;}
+
+  /* FINAL CTA */
+  .final{
+    text-align:center;
+    background:radial-gradient(60% 80% at 50% 0%, rgba(199,255,61,0.16), transparent 70%);
+  }
+  .final h2{margin:0 auto;max-width:640px;}
+  .final .btn-primary{margin-top:32px;}
+
+  footer{
+    border-top:1px solid var(--border);
+    padding:32px 0;color:var(--muted);font-size:13px;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  }
+
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease, transform .6s ease;}
+  .reveal.in{opacity:1;transform:none;}
+
+  @media (max-width:860px){
+    .pain-grid,.benefits{grid-template-columns:1fr;}
+    .about{grid-template-columns:1fr;}
+    .about-photo{max-width:280px;}
+    .price-box{grid-template-columns:1fr;padding:28px;}
+  }
+  @media (max-width:480px){
+    section{padding:64px 0;}
+    .hero{padding-top:100px;}
+    .hero-stats{grid-template-columns:1fr 1fr;}
+    .price-new{font-size:40px;}
+    .btn-primary{width:100%;justify-content:center;}
+    .nav-cta{padding:8px 14px;font-size:13px;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">focus<span>.claude</span></div>
+    <a href="#price" class="nav-cta">Забронировать место</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="stream-tag">18 поток · старт ближайшая когорта</div>
+    <h1>«Claude вместо команды» — <em>фокус-группа</em> для тех, кто хочет закрывать задачи в одиночку, а не нанимать штат</h1>
+    <p class="lead">Живой разбор рабочих кейсов вместе со мной: как выстроить процессы, дизайн и продакшн так, чтобы Claude закрывал роль дизайнера, аналитика и части команды разработки — на реальных задачах, а не в теории.</p>
+
+    <div class="hero-cta-row">
+      <a href="#price" class="btn-primary">Занять место за 35 000 ₽ →</a>
+      <div class="hero-price-note">Вместо <b>70 000 ₽</b> — только до 13 сентября</div>
+    </div>
+
+    <div class="hero-stats">
+      <div><div class="num">18</div><div class="lbl">поток, отобранная группа</div></div>
+      <div><div class="num">1:1</div><div class="lbl">разбор твоего кейса на группе</div></div>
+      <div><div class="num">−50%</div><div class="lbl">цены до 13 сентября</div></div>
+    </div>
+  </div>
+</header>
+
+<section id="pain">
+  <div class="wrap">
+    <span class="eyebrow">Знакомо?</span>
+    <h2>Ты тащишь на себе то, что должна делать команда</h2>
+    <div class="pain-grid">
+      <div class="pain-card reveal"><span class="mark">01</span><p>Нанимать дизайнера, аналитика или ассистента дорого и долго — а задача нужна была вчера.</p></div>
+      <div class="pain-card reveal"><span class="mark">02</span><p>Пробовал(а) работать с Claude/GPT сам — получается хаотично, без системы и без результата, который можно показать клиенту.</p></div>
+      <div class="pain-card reveal"><span class="mark">03</span><p>Не понятно, где заканчивается зона ответственности ИИ и начинается твоя — в итоге либо делаешь всё руками, либо не доверяешь результату.</p></div>
+      <div class="pain-card reveal"><span class="mark">04</span><p>Смотришь на кейсы других и не понимаешь, как перенести их процесс на свои задачи и свою нишу.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="solution">
+  <div class="wrap">
+    <span class="eyebrow">Формат</span>
+    <h2>Фокус-группа, а не курс с видео «посмотри и повтори»</h2>
+    <p class="section-sub">Малая группа, живые созвоны, разбор твоих реальных задач прямо на встрече. Я показываю связку промптов, инструментов и процессов, которую использую сама как практикующий дизайнер — ты адаптируешь под свою нишу тут же, при мне.</p>
+
+    <div class="benefits">
+      <div class="benefit reveal"><div class="n">01</div><h4>Своя рабочая система</h4><p>Готовые сценарии и промпты под дизайн, тексты, аналитику и упаковку — не шаблоны «для всех», а связка под твою задачу.</p></div>
+      <div class="benefit reveal"><div class="n">02</div><h4>Разбор твоего кейса</h4><p>Приносишь реальную задачу — разбираем прямо на группе, находим, где Claude закрывает роль команды уже сейчас.</p></div>
+      <div class="benefit reveal"><div class="n">03</div><h4>Ответственность и качество</h4><p>Учимся ставить границы: что отдаём ИИ полностью, что проверяем сами, как не терять качество результата.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap">
+    <span class="eyebrow">Кто ведёт</span>
+    <div class="about">
+      <div class="about-photo reveal">
+        <!-- ЗАМЕНИТЬ: вставь сюда своё фото —
+             <img src="твоё-фото.jpg" alt="Ведущая фокус-группы"> -->
+        <div class="ph-placeholder">Место под твоё фото<br>(4:5, вертикальное)</div>
+        <div class="about-badge">Дизайнер · практикующий ИИ-продакшн 2026</div>
+      </div>
+      <div class="reveal">
+        <h3>Привет, я веду этот поток лично</h3>
+        <div class="role">Дизайнер · выстраиваю production-процессы вокруг Claude</div>
+        <p>Больше не собираю команду на каждый проект — выстроила процесс, где Claude закрывает дизайн, аналитику и часть продакшна, а я управляю качеством и результатом.</p>
+        <p>На фокус-группе показываю не теорию, а живую рабочую систему: те же промпты, сценарии и чек-листы, которыми пользуюсь в своих проектах прямо сейчас.</p>
+        <div class="about-tags">
+          <span>Дизайн-система</span><span>AI-продакшн</span><span>Процессы без найма</span><span>18 потоков опыта</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="price">
+  <div class="wrap">
+    <span class="eyebrow">Условия 18 потока</span>
+    <h2>Место в группе — со скидкой до 13 сентября</h2>
+
+    <div class="price-box reveal">
+      <div class="price-left">
+        <div class="deadline">⏳ Скидка сгорает 13 сентября</div>
+        <div class="price-row">
+          <span class="price-old">70 000 ₽</span>
+          <span class="price-new">35 000 ₽</span>
+          <span class="price-cur">при оплате до 13.09</span>
+        </div>
+        <ul class="price-includes">
+          <li>Участие в 18 потоке фокус-группы «Claude вместо команды»</li>
+          <li>Разбор твоего рабочего кейса на группе</li>
+          <li>Рабочие сценарии и промпты, которые использую сама</li>
+          <li>Малая группа — не поток на 200 человек</li>
+        </ul>
+      </div>
+      <div class="price-right">
+        <div style="color:var(--muted);font-size:13px;">До конца акции осталось</div>
+        <div id="countdown">—</div>
+        <form action="https://securepay.roboxchange.com/Index.aspx" method="POST" style="margin-top:18px;">
+          <!-- Robokassa: замени плейсхолдеры на свои реальные данные -->
+          <input type="hidden" name="MerchantLogin" value="ВАШ_MERCHANT_LOGIN">
+          <input type="hidden" name="OutSum" value="35000">
+          <input type="hidden" name="InvId" value="0">
+          <input type="hidden" name="Description" value="Фокус-группа Claude вместо команды, 18 поток">
+          <input type="hidden" name="SignatureValue" value="ВАШ_SIGNATURE_VALUE">
+          <input type="hidden" name="IsTest" value="0">
+          <button type="submit" class="btn-primary">Оплатить 35 000 ₽ →</button>
+        </form>
+        <div class="small">После 13 сентября — 70 000 ₽. Оплата через Robokassa.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <span class="eyebrow">Вопросы</span>
+    <h2>Прежде чем оплатить</h2>
+
+    <div style="margin-top:32px;">
+      <div class="faq-item">
+        <div class="faq-q"><span>Это подходит, если я не дизайнер?</span><span class="plus">+</span></div>
+        <div class="faq-a">Да. Формат рассчитан на любую нишу, где нужно закрывать задачи дизайна, текстов или аналитики без найма команды — процесс адаптируется под твои задачи прямо на группе.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span>А если у меня нет готового кейса?</span><span class="plus">+</span></div>
+        <div class="faq-a">Разберём любую актуальную задачу — свою идею, проект клиента или пример из твоей практики.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span>Почему цена вырастет после 13 сентября?</span><span class="plus">+</span></div>
+        <div class="faq-a">35 000 ₽ — цена ранней регистрации для 18 потока. После дедлайна действует полная стоимость участия — 70 000 ₽.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span>Как проходит оплата?</span><span class="plus">+</span></div>
+        <div class="faq-a">Через Robokassa — нажимаешь кнопку оплаты, вводишь данные карты на защищённой странице оплаты, место в группе бронируется сразу после подтверждения платежа.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <span class="eyebrow">18 поток стартует скоро</span>
+    <h2>Места в группе ограничены — успей забронировать до 13 сентября</h2>
+    <a href="#price" class="btn-primary">Занять место за 35 000 ₽ →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:12px;">
+    <div>Claude вместо команды · Фокус-группа, 18 поток</div>
+    <div>Вопросы — пишите в личные сообщения</div>
+  </div>
+</footer>
+
+<script>
+  // Reveal on scroll
+  const revealEls = document.querySelectorAll('.reveal, .pain-card, .benefit, .price-box');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+  }, {threshold:0.15});
+  revealEls.forEach(el=>{ el.classList.add('reveal'); io.observe(el); });
+
+  // FAQ accordion
+  document.querySelectorAll('.faq-item').forEach(item=>{
+    item.querySelector('.faq-q').addEventListener('click', ()=>{
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(i=>i.classList.remove('open'));
+      if(!isOpen) item.classList.add('open');
+    });
+  });
+
+  // Countdown to Sep 13, 2026 23:59:59 local time
+  const deadline = new Date('2026-09-13T23:59:59');
+  const el = document.getElementById('countdown');
+  function tick(){
+    const now = new Date();
+    let diff = deadline - now;
+    if(diff <= 0){ el.textContent = 'Скидка закончилась'; return; }
+    const d = Math.floor(diff/86400000); diff-=d*86400000;
+    const h = Math.floor(diff/3600000); diff-=h*3600000;
+    const m = Math.floor(diff/60000);
+    el.textContent = `${d}д ${h}ч ${m}м`;
+  }
+  tick(); setInterval(tick, 60000);
+</script>
+
+</body>
+</html>
